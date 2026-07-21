@@ -2,6 +2,7 @@
 # ============================================================
 # SearXNG Termux 一键安装脚本
 # 用法：bash <(curl -s https://raw.githubusercontent.com/437834/searxng/main/install_searxng.sh)
+# 每个步骤会检查是否已完成，已完成则跳过，可安全重复运行
 # ============================================================
 
 set -e
@@ -16,6 +17,7 @@ info()  { echo -e "${CYAN}[信息]${NC} $1"; }
 ok()    { echo -e "${GREEN}[成功]${NC} $1"; }
 warn()  { echo -e "${YELLOW}[注意]${NC} $1"; }
 fail()  { echo -e "${RED}[失败]${NC} $1"; exit 1; }
+skip()  { echo -e "${YELLOW}[跳过]${NC} $1"; }
 
 echo ""
 echo -e "${CYAN}================================${NC}"
@@ -30,19 +32,31 @@ if [ ! -d "/data/data/com.termux" ]; then
 fi
 
 # ---------- 更新 Termux ----------
-info "更新 Termux 包管理器..."
-TERM=noninteractive pkg update -y > /dev/null 2>&1
-TERM=noninteractive pkg upgrade -y > /dev/null 2>&1
-ok "Termux 更新完成"
+info "检查 Termux 包管理器..."
+if [ -f /tmp/.searxng_termux_updated ]; then
+    skip "Termux 已更新，跳过"
+else
+    info "更新 Termux 包管理器..."
+    TERM=noninteractive pkg update -y
+    TERM=noninteractive pkg upgrade -y
+    touch /tmp/.searxng_termux_updated
+    ok "Termux 更新完成"
+fi
 
 # ---------- 安装 proot-distro ----------
-info "安装 proot-distro..."
-pkg install proot-distro -y
-ok "proot-distro 安装完成"
+info "检查 proot-distro..."
+if command -v proot-distro &>/dev/null; then
+    skip "proot-distro 已安装，跳过"
+else
+    info "安装 proot-distro..."
+    pkg install proot-distro -y
+    ok "proot-distro 安装完成"
+fi
 
 # ---------- 安装 Ubuntu ----------
+info "检查 Ubuntu..."
 if proot-distro list 2>/dev/null | grep -q "ubuntu.*installed"; then
-    warn "Ubuntu 已安装，跳过"
+    skip "Ubuntu 已安装，跳过"
 else
     info "安装 Ubuntu（可能需要几分钟）..."
     proot-distro install ubuntu
@@ -50,49 +64,108 @@ else
 fi
 
 # ---------- Ubuntu 内部安装 ----------
-info "进入 Ubuntu 安装 SearXNG..."
+info "进入 Ubuntu 检查 SearXNG 安装状态..."
 
 proot-distro login ubuntu -- bash -c '
 set -e
 export DEBIAN_FRONTEND=noninteractive
 
-echo "[信息] 更新 Ubuntu..."
-apt update -y > /dev/null 2>&1
+# 检查标志文件
+SEARXNG_DONE="/tmp/.searxng_install_done"
 
-echo "[信息] 安装编译依赖..."
-apt install -y -o Dpkg::Options::="--force-confold" \
-    python3 python3-pip python3-venv python3-dev \
-    git build-essential libxml2-dev libxslt1-dev \
-    libffi-dev libssl-dev zlib1g-dev libjpeg-dev libyaml-dev > /dev/null 2>&1
-echo "[成功] 依赖安装完成"
-
-echo "[信息] 创建 Python 虚拟环境..."
-cd ~
-python3 -m venv ~/searxng-env
-source ~/searxng-env/bin/activate
-
-echo "[信息] 升级 pip..."
-pip install --upgrade pip setuptools wheel > /dev/null 2>&1
-
-if [ -d ~/searxng ]; then
-    echo "[注意] SearXNG 目录已存在，跳过克隆"
-    cd ~/searxng
-    git pull > /dev/null 2>&1 || true
-else
-    echo "[信息] 克隆 SearXNG..."
-    git clone https://github.com/searxng/searxng.git ~/searxng
+if [ -f "$SEARXNG_DONE" ]; then
+    echo "[跳过] SearXNG 已安装完成，跳过所有 Ubuntu 内部步骤"
+    exit 0
 fi
 
-echo "[信息] 安装 Python 依赖..."
-pip install -r ~/searxng/requirements.txt > /dev/null 2>&1
-pip install -r ~/searxng/requirements-server.txt > /dev/null 2>&1
+# --- 更新 Ubuntu ---
+echo "[信息] 检查 Ubuntu 包管理器..."
+if [ -f /tmp/.searxng_apt_updated ]; then
+    echo "[跳过] Ubuntu 已更新，跳过"
+else
+    echo "[信息] 更新 Ubuntu..."
+    apt update -y
+    touch /tmp/.searxng_apt_updated
+    echo "[成功] Ubuntu 更新完成"
+fi
 
-echo "[信息] 安装 SearXNG 本体..."
-pip install --no-build-isolation ~/searxng > /dev/null 2>&1
-echo "[成功] SearXNG 安装完成"
+# --- 安装编译依赖 ---
+echo "[信息] 检查编译依赖..."
+NEEDED="python3 python3-pip python3-venv python3-dev git build-essential libxml2-dev libxslt1-dev libffi-dev libssl-dev zlib1g-dev libjpeg-dev libyaml-dev"
+MISSING=""
+for pkg in $NEEDED; do
+    if ! dpkg -s "$pkg" &>/dev/null; then
+        MISSING="$MISSING $pkg"
+    fi
+done
 
-echo "[信息] 修复已知 Bug..."
-python3 << PYFIX
+if [ -z "$MISSING" ]; then
+    echo "[跳过] 编译依赖已全部安装，跳过"
+else
+    echo "[信息] 安装缺失依赖:$MISSING"
+    apt install -y -o Dpkg::Options::="--force-confold" $MISSING
+    echo "[成功] 依赖安装完成"
+fi
+
+# --- 创建 Python 虚拟环境 ---
+echo "[信息] 检查 Python 虚拟环境..."
+if [ -d ~/searxng-env ] && [ -f ~/searxng-env/bin/activate ]; then
+    echo "[跳过] 虚拟环境已存在，跳过"
+else
+    echo "[信息] 创建 Python 虚拟环境..."
+    cd ~
+    python3 -m venv ~/searxng-env
+    echo "[成功] 虚拟环境创建完成"
+fi
+source ~/searxng-env/bin/activate
+
+# --- 升级 pip ---
+echo "[信息] 检查 pip 版本..."
+CURRENT_PIP=$(pip --version 2>/dev/null | awk "{print \$2}")
+pip install --upgrade pip setuptools wheel
+echo "[成功] pip 已是最新"
+
+# --- 克隆 SearXNG ---
+echo "[信息] 检查 SearXNG 源码..."
+if [ -d ~/searxng ] && [ -f ~/searxng/setup.py ]; then
+    echo "[跳过] SearXNG 目录已存在，跳过克隆"
+    cd ~/searxng
+    git pull || true
+else
+    echo "[信息] 克隆 SearXNG..."
+    rm -rf ~/searxng
+    git clone https://github.com/searxng/searxng.git ~/searxng
+    echo "[成功] 克隆完成"
+fi
+
+# --- 安装 Python 依赖 ---
+echo "[信息] 检查 Python 依赖..."
+if python3 -c "import lxml, yaml, flask" 2>/dev/null; then
+    echo "[跳过] Python 依赖已安装，跳过"
+else
+    echo "[信息] 安装 Python 依赖..."
+    pip install -r ~/searxng/requirements.txt
+    pip install -r ~/searxng/requirements-server.txt
+    echo "[成功] Python 依赖安装完成"
+fi
+
+# --- 安装 SearXNG 本体 ---
+echo "[信息] 检查 SearXNG 本体..."
+if python3 -c "import searx" 2>/dev/null; then
+    echo "[跳过] SearXNG 本体已安装，跳过"
+else
+    echo "[信息] 安装 SearXNG 本体..."
+    pip install --no-build-isolation ~/searxng
+    echo "[成功] SearXNG 安装完成"
+fi
+
+# --- 修复已知 Bug ---
+echo "[信息] 检查 Bug 修复..."
+if grep -q "default_doi_resolver" ~/searxng/searx/settings_defaults.py 2>/dev/null; then
+    echo "[跳过] Bug 已修复，跳过"
+else
+    echo "[信息] 修复已知 Bug..."
+    python3 << PYFIX
 with open("/root/searxng/searx/settings_defaults.py", "r") as f:
     c = f.read()
 if "default_doi_resolver" not in c:
@@ -103,14 +176,20 @@ if "default_doi_resolver" not in c:
 with open("/root/searxng/searx/settings_defaults.py", "w") as f:
     f.write(c)
 PYFIX
-echo "[成功] Bug 修复完成"
+    echo "[成功] Bug 修复完成"
+fi
 
-echo "[信息] 写入配置文件..."
-mkdir -p ~/searxng/searx
+# --- 写入配置文件 ---
+echo "[信息] 检查配置文件..."
+if [ -f ~/searxng/searx/settings.yml ]; then
+    echo "[跳过] 配置文件已存在，跳过"
+else
+    echo "[信息] 写入配置文件..."
+    mkdir -p ~/searxng/searx
 
-SK=$(python3 -c "import secrets; print(secrets.token_hex(32))")
+    SK=$(python3 -c "import secrets; print(secrets.token_hex(32))")
 
-cat > ~/searxng/searx/settings.yml << YAML
+    cat > ~/searxng/searx/settings.yml << YAML
 use_default_settings: true
 general:
   instance_name: "SearXNG"
@@ -125,7 +204,7 @@ search:
     - json
 
 server:
-  secret_key: "${SK}"
+  secret_key: "\${SK}"
   bind_address: "0.0.0.0"
   port: 8888
   limiter: false
@@ -146,17 +225,27 @@ ui:
 outgoing:
   request_timeout: 10.0
 YAML
+    echo "[成功] 配置写入完成"
+fi
 
-echo "[成功] 配置写入完成"
-
+# --- 验证安装 ---
 echo "[信息] 验证安装..."
 python3 -c "import searx; print('[成功] SearXNG 导入验证通过')"
+
+# 标记全部完成
+touch "$SEARXNG_DONE"
+echo "[成功] Ubuntu 内部安装全部完成"
 '
 
 # ---------- 部署引擎管理器 ----------
-info "部署引擎管理器..."
+info "检查引擎管理器..."
+UBUNTU_ROOT="$PREFIX/var/lib/proot-distro/installed-rootfs/ubuntu/root"
+if [ -f "$UBUNTU_ROOT/searxng/engine_mgr.py" ]; then
+    skip "引擎管理器已部署，跳过"
+else
+    info "部署引擎管理器..."
 
-cat > /tmp/engine_mgr.py << 'PYEOF'
+    cat > /tmp/engine_mgr.py << 'PYEOF'
 #!/usr/bin/env python3
 """SearXNG Engine Manager"""
 import yaml
@@ -330,14 +419,19 @@ if __name__ == "__main__":
     main()
 PYEOF
 
-cp /tmp/engine_mgr.py "$PREFIX/var/lib/proot-distro/installed-rootfs/ubuntu/root/searxng/engine_mgr.py"
-rm -f /tmp/engine_mgr.py
-ok "引擎管理器部署完成"
+    cp /tmp/engine_mgr.py "$UBUNTU_ROOT/searxng/engine_mgr.py"
+    rm -f /tmp/engine_mgr.py
+    ok "引擎管理器部署完成"
+fi
 
 # ---------- 创建主菜单脚本 ----------
-info "创建主菜单脚本..."
+info "检查主菜单脚本..."
+if [ -f ~/sear ]; then
+    skip "主菜单脚本已存在，跳过"
+else
+    info "创建主菜单脚本..."
 
-cat > ~/sear << 'MENU_EOF'
+    cat > ~/sear << 'MENU_EOF'
 #!/bin/bash
 LOG_DIR=~/searxng-logs
 mkdir -p "$LOG_DIR"
@@ -520,8 +614,9 @@ while true; do
 done
 MENU_EOF
 
-chmod +x ~/sear
-ok "主菜单脚本创建完成"
+    chmod +x ~/sear
+    ok "主菜单脚本创建完成"
+fi
 
 # ---------- 完成 ----------
 echo ""
