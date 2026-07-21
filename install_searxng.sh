@@ -72,7 +72,7 @@ INSTALL_OUTPUT=$(proot-distro install ubuntu 2>&1) && {
 # ---------- Ubuntu 内部安装 ----------
 info "进入 Ubuntu 检查 SearXNG 安装状态..."
 
-proot-distro login ubuntu -- bash -c '
+cat > /tmp/_searxng_install.sh << "INSTALLSCRIPT"
 set -e
 export DEBIAN_FRONTEND=noninteractive
 
@@ -241,7 +241,10 @@ python3 -c "import searx; print('SearXNG OK')"
 # 标记全部完成
 touch "$SEARXNG_DONE"
 echo "[成功] Ubuntu 内部安装全部完成"
-'
+INSTALLSCRIPT
+
+proot-distro login ubuntu -- bash /tmp/_searxng_install.sh
+rm -f /tmp/_searxng_install.sh
 
 # ---------- 部署引擎管理器 ----------
 info "检查引擎管理器..."
