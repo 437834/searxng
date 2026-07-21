@@ -31,15 +31,18 @@ if [ ! -d "/data/data/com.termux" ]; then
     fail "请在 Termux 中运行此脚本！"
 fi
 
+SEARXNG_FLAGS="$HOME/.searxng_installed"
+mkdir -p "$SEARXNG_FLAGS"
+
 # ---------- 更新 Termux ----------
 info "检查 Termux 包管理器..."
-if [ -f /tmp/.searxng_termux_updated ]; then
+if [ -f $HOME/.searxng_installed/.termux_updated ]; then
     skip "Termux 已更新，跳过"
 else
     info "更新 Termux 包管理器..."
     TERM=noninteractive pkg update -y
     TERM=noninteractive pkg upgrade -y
-    touch /tmp/.searxng_termux_updated
+    touch $HOME/.searxng_installed/.termux_updated
     ok "Termux 更新完成"
 fi
 
