@@ -236,7 +236,7 @@ fi
 
 # --- 验证安装 ---
 echo "[信息] 验证安装..."
-python3 -c "import searx; print('[成功] SearXNG 导入验证通过')"
+python3 -c "import searx; print('SearXNG OK')"
 
 # 标记全部完成
 touch "$SEARXNG_DONE"
