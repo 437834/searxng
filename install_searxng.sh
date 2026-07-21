@@ -1,7 +1,7 @@
 #!/bin/bash
 # ============================================================
-# SearXNG Termux ä¸é®å®è£èæ¬
-# ç¨æ³ï¼bash <(curl -s https://raw.githubusercontent.com/437834/searxng/main/install_searxng.sh)
+# SearXNG Termux 一键安装脚本
+# 用法：bash <(curl -s https://raw.githubusercontent.com/437834/searxng/main/install_searxng.sh)
 # ============================================================
 
 set -e
@@ -12,86 +12,86 @@ YELLOW='\033[1;33m'
 CYAN='\033[0;36m'
 NC='\033[0m'
 
-info()  { echo -e "${CYAN}[ä¿¡æ¯]${NC} $1"; }
-ok()    { echo -e "${GREEN}[æå]${NC} $1"; }
-warn()  { echo -e "${YELLOW}[æ³¨æ]${NC} $1"; }
-fail()  { echo -e "${RED}[å¤±è´¥]${NC} $1"; exit 1; }
+info()  { echo -e "${CYAN}[信息]${NC} $1"; }
+ok()    { echo -e "${GREEN}[成功]${NC} $1"; }
+warn()  { echo -e "${YELLOW}[注意]${NC} $1"; }
+fail()  { echo -e "${RED}[失败]${NC} $1"; exit 1; }
 
 echo ""
 echo -e "${CYAN}================================${NC}"
-echo -e "${CYAN}  SearXNG Termux ä¸é®å®è£èæ¬  ${NC}"
+echo -e "${CYAN}  SearXNG Termux 一键安装脚本  ${NC}"
 echo -e "${CYAN}================================${NC}"
 echo ""
 
-# ---------- æ£æ¥ç¯å¢ ----------
-info "æ£æ¥è¿è¡ç¯å¢..."
+# ---------- 检查环境 ----------
+info "检查运行环境..."
 if [ ! -d "/data/data/com.termux" ]; then
-    fail "è¯·å¨ Termux ä¸­è¿è¡æ­¤èæ¬ï¼"
+    fail "请在 Termux 中运行此脚本！"
 fi
 
-# ---------- æ´æ° Termux ----------
-info "æ´æ° Termux åç®¡çå¨..."
+# ---------- 更新 Termux ----------
+info "更新 Termux 包管理器..."
 TERM=noninteractive pkg update -y > /dev/null 2>&1
 TERM=noninteractive pkg upgrade -y > /dev/null 2>&1
-ok "Termux æ´æ°å®æ"
+ok "Termux 更新完成"
 
-# ---------- å®è£ proot-distro ----------
-info "å®è£ proot-distro..."
+# ---------- 安装 proot-distro ----------
+info "安装 proot-distro..."
 pkg install proot-distro -y
-ok "proot-distro å®è£å®æ"
+ok "proot-distro 安装完成"
 
-# ---------- å®è£ Ubuntu ----------
+# ---------- 安装 Ubuntu ----------
 if proot-distro list 2>/dev/null | grep -q "ubuntu.*installed"; then
-    warn "Ubuntu å·²å®è£ï¼è·³è¿"
+    warn "Ubuntu 已安装，跳过"
 else
-    info "å®è£ Ubuntuï¼å¯è½éè¦å åéï¼..."
+    info "安装 Ubuntu（可能需要几分钟）..."
     proot-distro install ubuntu
-    ok "Ubuntu å®è£å®æ"
+    ok "Ubuntu 安装完成"
 fi
 
-# ---------- Ubuntu åé¨å®è£ ----------
-info "è¿å¥ Ubuntu å®è£ SearXNG..."
+# ---------- Ubuntu 内部安装 ----------
+info "进入 Ubuntu 安装 SearXNG..."
 
 proot-distro login ubuntu -- bash -c '
 set -e
 export DEBIAN_FRONTEND=noninteractive
 
-echo "[ä¿¡æ¯] æ´æ° Ubuntu..."
+echo "[信息] 更新 Ubuntu..."
 apt update -y > /dev/null 2>&1
 
-echo "[ä¿¡æ¯] å®è£ç¼è¯ä¾èµ..."
+echo "[信息] 安装编译依赖..."
 apt install -y -o Dpkg::Options::="--force-confold" \
     python3 python3-pip python3-venv python3-dev \
     git build-essential libxml2-dev libxslt1-dev \
     libffi-dev libssl-dev zlib1g-dev libjpeg-dev libyaml-dev > /dev/null 2>&1
-echo "[æå] ä¾èµå®è£å®æ"
+echo "[成功] 依赖安装完成"
 
-echo "[ä¿¡æ¯] åå»º Python èæç¯å¢..."
+echo "[信息] 创建 Python 虚拟环境..."
 cd ~
 python3 -m venv ~/searxng-env
 source ~/searxng-env/bin/activate
 
-echo "[ä¿¡æ¯] åçº§ pip..."
+echo "[信息] 升级 pip..."
 pip install --upgrade pip setuptools wheel > /dev/null 2>&1
 
 if [ -d ~/searxng ]; then
-    echo "[æ³¨æ] SearXNG ç®å½å·²å­å¨ï¼è·³è¿åé"
+    echo "[注意] SearXNG 目录已存在，跳过克隆"
     cd ~/searxng
     git pull > /dev/null 2>&1 || true
 else
-    echo "[ä¿¡æ¯] åé SearXNG..."
+    echo "[信息] 克隆 SearXNG..."
     git clone https://github.com/searxng/searxng.git ~/searxng
 fi
 
-echo "[ä¿¡æ¯] å®è£ Python ä¾èµ..."
+echo "[信息] 安装 Python 依赖..."
 pip install -r ~/searxng/requirements.txt > /dev/null 2>&1
 pip install -r ~/searxng/requirements-server.txt > /dev/null 2>&1
 
-echo "[ä¿¡æ¯] å®è£ SearXNG æ¬ä½..."
+echo "[信息] 安装 SearXNG 本体..."
 pip install --no-build-isolation ~/searxng > /dev/null 2>&1
-echo "[æå] SearXNG å®è£å®æ"
+echo "[成功] SearXNG 安装完成"
 
-echo "[ä¿¡æ¯] ä¿®å¤å·²ç¥ Bug..."
+echo "[信息] 修复已知 Bug..."
 python3 << PYFIX
 with open("/root/searxng/searx/settings_defaults.py", "r") as f:
     c = f.read()
@@ -103,9 +103,9 @@ if "default_doi_resolver" not in c:
 with open("/root/searxng/searx/settings_defaults.py", "w") as f:
     f.write(c)
 PYFIX
-echo "[æå] Bug ä¿®å¤å®æ"
+echo "[成功] Bug 修复完成"
 
-echo "[ä¿¡æ¯] åå¥éç½®æä»¶..."
+echo "[信息] 写入配置文件..."
 mkdir -p ~/searxng/searx
 
 SK=$(python3 -c "import secrets; print(secrets.token_hex(32))")
@@ -147,14 +147,14 @@ outgoing:
   request_timeout: 10.0
 YAML
 
-echo "[æå] éç½®åå¥å®æ"
+echo "[成功] 配置写入完成"
 
-echo "[ä¿¡æ¯] éªè¯å®è£..."
-python3 -c "import searx; print('[æå] SearXNG å¯¼å¥éªè¯éè¿')"
+echo "[信息] 验证安装..."
+python3 -c "import searx; print('[成功] SearXNG 导入验证通过')"
 '
 
-# ---------- é¨ç½²å¼æç®¡çå¨ ----------
-info "é¨ç½²å¼æç®¡çå¨..."
+# ---------- 部署引擎管理器 ----------
+info "部署引擎管理器..."
 
 cat > /tmp/engine_mgr.py << 'PYEOF'
 #!/usr/bin/env python3
@@ -167,26 +167,26 @@ from datetime import datetime
 SETTINGS = os.path.expanduser("~/searxng/searx/settings.yml")
 
 ENGINE_LIST = [
-    ("baidu", "baidu", "ç¾åº¦", "ä¸­å½æç´¢å¼æï¼æ éç¿»å¢"),
-    ("bing", "bing", "Bing", "å¾®è½¯æç´¢å¼æ"),
-    ("duckduckgo", "duckduckgo", "DuckDuckGo", "éç§æç´¢å¼æ"),
-    ("google", "google", "Google", "å¨çæµè¡æç´¢å¼æ"),
-    ("google images", "google_images", "Google å¾ç", "å¾çæç´¢"),
-    ("google news", "google_news", "Google æ°é»", "æ°é»æç´¢"),
-    ("google videos", "google_videos", "Google è§é¢", "è§é¢æç´¢"),
-    ("google scholar", "google_scholar", "Google å­¦æ¯", "å­¦æ¯è®ºææç´¢"),
-    ("wikipedia", "wikipedia", "Wikipedia", "èªç±ç¾ç§å¨ä¹¦"),
-    ("wikidata", "wikidata", "Wikidata", "ç»æåç¥è¯åº"),
-    ("brave", "brave", "Brave Search", "éç§æç´¢å¼æ"),
-    ("startpage", "startpage", "Startpage", "å¿åæç´¢å¼æ"),
-    ("moegirl", "moegirl", "èå¨ç¾ç§", "ACG ç¾ç§å¨ä¹¦"),
-    ("yahoo", "yahoo", "Yahoo", "éèæç´¢"),
-    ("yandex", "yandex", "Yandex", "ä¿ç½æ¯æç´¢å¼æ"),
-    ("qwant", "qwant", "Qwant", "æ³å½éç§æç´¢å¼æ"),
-    ("ecosia", "ecosia", "Ecosia", "ç¯ä¿æç´¢å¼æ"),
-    ("github", "github", "GitHub", "ä»£ç æç®¡å¹³å°æç´¢"),
-    ("currency convert", "currency_convert", "è´§å¸è½¬æ¢", "å®æ¶æ±çè½¬æ¢"),
-    ("searx instances", "searx_instances", "SearX å®ä¾", "æç´¢å¶ä» SearX å®ä¾"),
+    ("baidu", "baidu", "百度", "中国搜索引擎，无需翻墙"),
+    ("bing", "bing", "Bing", "微软搜索引擎"),
+    ("duckduckgo", "duckduckgo", "DuckDuckGo", "隐私搜索引擎"),
+    ("google", "google", "Google", "全球流行搜索引擎"),
+    ("google images", "google_images", "Google 图片", "图片搜索"),
+    ("google news", "google_news", "Google 新闻", "新闻搜索"),
+    ("google videos", "google_videos", "Google 视频", "视频搜索"),
+    ("google scholar", "google_scholar", "Google 学术", "学术论文搜索"),
+    ("wikipedia", "wikipedia", "Wikipedia", "自由百科全书"),
+    ("wikidata", "wikidata", "Wikidata", "结构化知识库"),
+    ("brave", "brave", "Brave Search", "隐私搜索引擎"),
+    ("startpage", "startpage", "Startpage", "匿名搜索引擎"),
+    ("moegirl", "moegirl", "萌娘百科", "ACG 百科全书"),
+    ("yahoo", "yahoo", "Yahoo", "雅虎搜索"),
+    ("yandex", "yandex", "Yandex", "俄罗斯搜索引擎"),
+    ("qwant", "qwant", "Qwant", "法国隐私搜索引擎"),
+    ("ecosia", "ecosia", "Ecosia", "环保搜索引擎"),
+    ("github", "github", "GitHub", "代码托管平台搜索"),
+    ("currency convert", "currency_convert", "货币转换", "实时汇率转换"),
+    ("searx instances", "searx_instances", "SearX 实例", "搜索其他 SearX 实例"),
 ]
 
 ENGINE_MAP = {e[0]: e[1] for e in ENGINE_LIST}
@@ -242,24 +242,24 @@ def set_engine_disabled(settings, engine_name, disabled):
 def show_menu(disabled_set):
     print()
     print("=" * 60)
-    print("  SearXNG å¼æç®¡ç")
+    print("  SearXNG 引擎管理")
     print("=" * 60)
     print()
-    print(f"  {'#':>3}  {'ç¶æ':<10}  {'åç§°':<16}  {'è¯´æ'}")
+    print(f"  {'#':>3}  {'状态':<10}  {'名称':<16}  {'说明'}")
     print(f"  {'---':>3}  {'------':<10}  {'----':<16}  {'----'}")
     for i, (name, _module, display, desc) in enumerate(ENGINE_LIST, 1):
         if name in disabled_set:
-            status = "â å·²ç¦ç¨"
+            status = "❌ 已禁用"
         else:
-            status = "â å·²å¯ç¨"
+            status = "✅ 已启用"
         print(f"  {i:3d}  {status:<10}  {display:<16}  {desc}")
     print()
-    print("  æä½ï¼")
-    print("    è¾å¥æ°å­    åæ¢å¯ç¨/ç¦ç¨")
-    print("    all         å¯ç¨åè¡¨ä¸­å¨é¨å¼æ")
-    print("    none        ç¦ç¨åè¡¨ä¸­å¨é¨å¼æ")
-    print("    reset       æ¢å¤é»è®¤éç½®")
-    print("    0           è¿åä¸çº§èå")
+    print("  操作：")
+    print("    输入数字    切换启用/禁用")
+    print("    all         启用列表中全部引擎")
+    print("    none        禁用列表中全部引擎")
+    print("    reset       恢复默认配置")
+    print("    0           返回上级菜单")
     print()
 
 
@@ -270,10 +270,10 @@ def main():
             disabled_set = get_disabled_set(settings)
             show_menu(disabled_set)
 
-            choice = input("  è¯·éæ©: ").strip().lower()
+            choice = input("  请选择: ").strip().lower()
 
             if choice == "0":
-                print("  å·²è¿åä¸»èå")
+                print("  已返回主菜单")
                 break
             elif choice == "all":
                 settings = load_settings()
@@ -283,7 +283,7 @@ def main():
                 ]
                 settings["engines"] = engines
                 save_settings(settings)
-                print("  å·²å¯ç¨å¨é¨å¼æ")
+                print("  已启用全部引擎")
             elif choice == "none":
                 settings = load_settings()
                 engines = [
@@ -294,7 +294,7 @@ def main():
                     engines.append({"name": name, "engine": module, "disabled": True})
                 settings["engines"] = engines
                 save_settings(settings)
-                print("  å·²ç¦ç¨å¨é¨å¼æ")
+                print("  已禁用全部引擎")
             elif choice == "reset":
                 settings = load_settings()
                 engines = [
@@ -303,7 +303,7 @@ def main():
                 ]
                 settings["engines"] = engines
                 save_settings(settings)
-                print("  å·²æ¢å¤é»è®¤éç½®")
+                print("  已恢复默认配置")
             elif choice.isdigit():
                 idx = int(choice) - 1
                 if 0 <= idx < len(ENGINE_LIST):
@@ -313,17 +313,17 @@ def main():
                     if name in disabled_set:
                         set_engine_disabled(settings, name, False)
                         save_settings(settings)
-                        print(f"  å·²å¯ç¨: {display}")
+                        print(f"  已启用: {display}")
                     else:
                         set_engine_disabled(settings, name, True)
                         save_settings(settings)
-                        print(f"  å·²ç¦ç¨: {display}")
+                        print(f"  已禁用: {display}")
                 else:
-                    print("  æ æéæ©ï¼è¯·éæ°è¾å¥")
+                    print("  无效选择，请重新输入")
             else:
-                print("  æ æéæ©ï¼è¯·éæ°è¾å¥")
+                print("  无效选择，请重新输入")
     except KeyboardInterrupt:
-        print("\n  å·²è¿åä¸»èå")
+        print("\n  已返回主菜单")
 
 
 if __name__ == "__main__":
@@ -332,10 +332,10 @@ PYEOF
 
 cp /tmp/engine_mgr.py "$PREFIX/var/lib/proot-distro/installed-rootfs/ubuntu/root/searxng/engine_mgr.py"
 rm -f /tmp/engine_mgr.py
-ok "å¼æç®¡çå¨é¨ç½²å®æ"
+ok "引擎管理器部署完成"
 
-# ---------- åå»ºä¸»èåèæ¬ ----------
-info "åå»ºä¸»èåèæ¬..."
+# ---------- 创建主菜单脚本 ----------
+info "创建主菜单脚本..."
 
 cat > ~/sear << 'MENU_EOF'
 #!/bin/bash
@@ -345,16 +345,16 @@ mkdir -p "$LOG_DIR"
 start_searxng() {
     local logfile="$LOG_DIR/searxng_$(date +%Y%m%d_%H%M%S).log"
     echo ""
-    echo "  æ¥å¿æä»¶: $logfile"
+    echo "  日志文件: $logfile"
     proot-distro login ubuntu -- bash -c "
         source ~/searxng-env/bin/activate
         export SEARXNG_SETTINGS_PATH=~/searxng/searx/settings.yml
         cd ~/searxng
         echo ''
         echo '================================'
-        echo '  SearXNG å·²å¯å¨'
-        echo '  è®¿é®å°å: http://localhost:8888'
-        echo '  æ Ctrl+C åæ­¢æå¡'
+        echo '  SearXNG 已启动'
+        echo '  访问地址: http://localhost:8888'
+        echo '  按 Ctrl+C 停止服务'
         echo '================================'
         echo ''
         python3 -m searx.webapp 2>&1
@@ -364,36 +364,36 @@ start_searxng() {
 view_logs() {
     echo ""
     echo "================================"
-    echo "  æ¥å¿æ¥ç"
+    echo "  日志查看"
     echo "================================"
     echo ""
 
     logfiles=($(ls -t "$LOG_DIR"/searxng_*.log 2>/dev/null))
 
     if [ ${#logfiles[@]} -eq 0 ]; then
-        echo "  ææ æ¥å¿æä»¶"
-        echo "  ï¼éè¦åå¯å¨ä¸æ¬¡ SearXNG æä¼äº§çæ¥å¿ï¼"
+        echo "  暂无日志文件"
+        echo "  （需要先启动一次 SearXNG 才会产生日志）"
         return
     fi
 
-    echo "  å¯ç¨æ¥å¿æä»¶ï¼"
+    echo "  可用日志文件："
     echo ""
     for i in "${!logfiles[@]}"; do
         local fname=$(basename "${logfiles[$i]}")
         local fsize=$(du -h "${logfiles[$i]}" | cut -f1)
         local lines=$(wc -l < "${logfiles[$i]}")
-        echo "  $((i+1)). $fname  ($fsize, ${lines}è¡)"
+        echo "  $((i+1)). $fname  ($fsize, ${lines}行)"
     done
     echo ""
-    echo "  æä½ï¼"
-    echo "    è¾å¥æ°å­      æ¥çè¯¥æ¥å¿"
-    echo "    s + å³é®è¯    æç´¢æ¥å¿ï¼å¦ s baiduï¼"
-    echo "    e             æ¥çææéè¯¯æ¥å¿"
-    echo "    t             æ¥çæè¿30æ¡æ¥å¿"
-    echo "    c             æ¸ç©ºæææ¥å¿"
-    echo "    0             è¿å"
+    echo "  操作："
+    echo "    输入数字      查看该日志"
+    echo "    s + 关键词    搜索日志（如 s baidu）"
+    echo "    e             查看所有错误日志"
+    echo "    t             查看最近30条日志"
+    echo "    c             清空所有日志"
+    echo "    0             返回"
     echo ""
-    read -p "  è¯·éæ©: " log_choice
+    read -p "  请选择: " log_choice
 
     case $log_choice in
         0)
@@ -401,35 +401,35 @@ view_logs() {
             ;;
         e)
             echo ""
-            echo "  ========== ææéè¯¯æ¥å¿ =========="
+            echo "  ========== 所有错误日志 =========="
             echo ""
-            grep -i -n "error\|traceback\|exception\|fail" "$LOG_DIR"/searxng_*.log 2>/dev/null || echo "  æ²¡ææ¾å°éè¯¯æ¥å¿"
+            grep -i -n "error\|traceback\|exception\|fail" "$LOG_DIR"/searxng_*.log 2>/dev/null || echo "  没有找到错误日志"
             echo ""
             ;;
         t)
             echo ""
-            echo "  ========== æè¿30æ¡æ¥å¿ =========="
+            echo "  ========== 最近30条日志 =========="
             echo ""
             tail -30 "$LOG_DIR"/searxng_*.log 2>/dev/null | tail -30
             echo ""
             ;;
         c)
-            read -p "  ç¡®å®è¦æ¸ç©ºæææ¥å¿åï¼(y/N): " confirm
+            read -p "  确定要清空所有日志吗？(y/N): " confirm
             if [ "$confirm" = "y" ] || [ "$confirm" = "Y" ]; then
                 rm -f "$LOG_DIR"/searxng_*.log
-                echo "  æ¥å¿å·²æ¸ç©º"
+                echo "  日志已清空"
             fi
             ;;
         s*)
             local keyword="${log_choice#s }"
             keyword=$(echo "$keyword" | xargs)
             if [ -z "$keyword" ]; then
-                read -p "  è¯·è¾å¥æç´¢å³é®è¯: " keyword
+                read -p "  请输入搜索关键词: " keyword
             fi
             echo ""
-            echo "  ========== æç´¢: $keyword =========="
+            echo "  ========== 搜索: $keyword =========="
             echo ""
-            grep -i -n "$keyword" "$LOG_DIR"/searxng_*.log 2>/dev/null || echo "  æ²¡ææ¾å°å¹éåå®¹"
+            grep -i -n "$keyword" "$LOG_DIR"/searxng_*.log 2>/dev/null || echo "  没有找到匹配内容"
             echo ""
             ;;
         [0-9]*)
@@ -440,11 +440,11 @@ view_logs() {
                 echo ""
                 less "${logfiles[$idx]}"
             else
-                echo "  æ æéæ©"
+                echo "  无效选择"
             fi
             ;;
         *)
-            echo "  æ æéæ©"
+            echo "  无效选择"
             ;;
     esac
 }
@@ -452,18 +452,18 @@ view_logs() {
 while true; do
     echo ""
     echo "================================"
-    echo "  SearXNG æç´¢å¼æç®¡ç"
+    echo "  SearXNG 搜索引擎管理"
     echo "================================"
     echo ""
-    echo "  1. å¯å¨ SearXNG"
-    echo "  2. å¼æç®¡ç"
-    echo "  3. æ¥çå½åéç½®"
-    echo "  4. ç¼è¾éç½®æä»¶"
-    echo "  5. æ¥çæ¥å¿"
-    echo "  6. å¸è½½ SearXNG"
-    echo "  0. éåº"
+    echo "  1. 启动 SearXNG"
+    echo "  2. 引擎管理"
+    echo "  3. 查看当前配置"
+    echo "  4. 编辑配置文件"
+    echo "  5. 查看日志"
+    echo "  6. 卸载 SearXNG"
+    echo "  0. 退出"
     echo ""
-    read -p "  è¯·éæ© [0-6]: " choice
+    read -p "  请选择 [0-6]: " choice
     case $choice in
         1)
             start_searxng
@@ -487,7 +487,7 @@ while true; do
         4)
             proot-distro login ubuntu -- bash -c '
                 echo ""
-                echo "  ç¨æ³ï¼i ç¼è¾  Esc+:wq ä¿å­  Esc+:q! éåº"
+                echo "  用法：i 编辑  Esc+:wq 保存  Esc+:q! 退出"
                 echo ""
                 vi ~/searxng/searx/settings.yml
             '
@@ -497,38 +497,38 @@ while true; do
             ;;
         6)
             echo ""
-            read -p "  ç¡®å®è¦å¸è½½ SearXNG åï¼(y/N): " confirm
+            read -p "  确定要卸载 SearXNG 吗？(y/N): " confirm
             if [ "$confirm" = "y" ] || [ "$confirm" = "Y" ]; then
-                echo "  æ­£å¨å¸è½½..."
+                echo "  正在卸载..."
                 proot-distro remove ubuntu 2>/dev/null
                 rm -f ~/sear
                 rm -rf "$LOG_DIR"
-                echo "  å¸è½½å®æï¼"
+                echo "  卸载完成！"
                 exit 0
             else
-                echo "  åæ¶å¸è½½"
+                echo "  取消卸载"
             fi
             ;;
         0)
-            echo "  åè§ï¼"
+            echo "  再见！"
             exit 0
             ;;
         *)
-            echo "  æ æéæ©ï¼è¯·éæ°è¾å¥"
+            echo "  无效选择，请重新输入"
             ;;
     esac
 done
 MENU_EOF
 
 chmod +x ~/sear
-ok "ä¸»èåèæ¬åå»ºå®æ"
+ok "主菜单脚本创建完成"
 
-# ---------- å®æ ----------
+# ---------- 完成 ----------
 echo ""
 echo -e "${GREEN}================================${NC}"
-echo -e "${GREEN}  å®è£å¨é¨å®æï¼${NC}"
+echo -e "${GREEN}  安装全部完成！${NC}"
 echo -e "${GREEN}================================${NC}"
 echo ""
-echo -e "  å¯å¨æ¹å¼ï¼${CYAN}~/sear${NC}"
-echo -e "  æµè§å¨è®¿é®ï¼${CYAN}http://localhost:8888${NC}"
+echo -e "  启动方式：${CYAN}~/sear${NC}"
+echo -e "  浏览器访问：${CYAN}http://localhost:8888${NC}"
 echo ""
