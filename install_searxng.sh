@@ -58,10 +58,8 @@ fi
 
 # ---------- 安装 Ubuntu ----------
 info "检查 Ubuntu..."
-if proot-distro list 2>/dev/null | grep -qi "ubuntu.*installed\|\[installed\]"; then
+if proot-distro login ubuntu -- true 2>/dev/null; then
     skip "Ubuntu 已安装，跳过"
-elif [ -d "$PREFIX/var/lib/proot-distro/installed-rootfs/ubuntu" ]; then
-    skip "Ubuntu 已安装（目录存在），跳过"
 else
     info "安装 Ubuntu（可能需要几分钟）..."
     proot-distro install ubuntu
