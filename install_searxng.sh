@@ -58,13 +58,16 @@ fi
 
 # ---------- 安装 Ubuntu ----------
 info "检查 Ubuntu..."
-if proot-distro login ubuntu -- true 2>/dev/null; then
-    skip "Ubuntu 已安装，跳过"
-else
-    info "安装 Ubuntu（可能需要几分钟）..."
-    proot-distro install ubuntu
+INSTALL_OUTPUT=$(proot-distro install ubuntu 2>&1) && {
     ok "Ubuntu 安装完成"
-fi
+} || {
+    if echo "$INSTALL_OUTPUT" | grep -qi "already exists"; then
+        skip "Ubuntu 已安装，跳过"
+    else
+        echo "$INSTALL_OUTPUT"
+        fail "Ubuntu 安装失败"
+    fi
+}
 
 # ---------- Ubuntu 内部安装 ----------
 info "进入 Ubuntu 检查 SearXNG 安装状态..."
