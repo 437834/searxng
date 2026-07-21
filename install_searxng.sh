@@ -85,7 +85,7 @@ if [ -f "$UBUNTU_ROOT/searxng/engine_mgr.py" ]; then
 else
     info "部署引擎管理器..."
 
-    cat > /tmp/engine_mgr.py << 'PYEOF'
+    cat > $HOME/.searxng_installed/engine_mgr.py << 'PYEOF'
 #!/usr/bin/env python3
 """SearXNG Engine Manager"""
 import yaml
@@ -259,8 +259,8 @@ if __name__ == "__main__":
     main()
 PYEOF
 
-    cp /tmp/engine_mgr.py "$UBUNTU_ROOT/searxng/engine_mgr.py"
-    rm -f /tmp/engine_mgr.py
+    cp $HOME/.searxng_installed/engine_mgr.py "$UBUNTU_ROOT/searxng/engine_mgr.py"
+    rm -f $HOME/.searxng_installed/engine_mgr.py
     ok "引擎管理器部署完成"
 fi
 
