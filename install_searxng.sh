@@ -77,9 +77,6 @@ echo "c2V0IC1lCmV4cG9ydCBERUJJQU5fRlJPTlRFTkQ9bm9uaW50ZXJhY3RpdmUKCiMg5qOA5p+l5q
 proot-distro login ubuntu -- bash /tmp/_searxng_install.sh
 rm -f /tmp/_searxng_install.sh
 
-proot-distro login ubuntu -- bash /tmp/_searxng_install.sh
-rm -f /tmp/_searxng_install.sh
-
 # ---------- 部署引擎管理器 ----------
 info "检查引擎管理器..."
 UBUNTU_ROOT="$PREFIX/var/lib/proot-distro/installed-rootfs/ubuntu/root"
